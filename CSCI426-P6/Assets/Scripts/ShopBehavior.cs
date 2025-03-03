@@ -31,12 +31,12 @@ public class ShopBehavior : MonoBehaviour
     int currChoice3;
 
     int money;
-    int playerAtk;
-    int playerHealth;
-    int enemyAtk;
-    int enemyHealth;
+    float playerAtk;
+    float playerHealth;
+    float enemyAtk;
+    float enemyHealth;
     bool freeRefresh;
-    int atkMultiplier = 2;
+    float atkMultiplier = 1.25f;
     bool blockAtk;
 
     // UI
@@ -67,8 +67,8 @@ public class ShopBehavior : MonoBehaviour
     void Update()
     {
         // track player health
-        playerHealthText.text = playerHealth.ToString();
-        enemyHealthText.text = enemyHealth.ToString();
+        playerHealthText.text = playerHealth.ToString("F0");
+        enemyHealthText.text = enemyHealth.ToString("F0");
 
         if (Input.GetKeyDown(KeyCode.R))
         {
@@ -89,10 +89,10 @@ public class ShopBehavior : MonoBehaviour
         moneyText.text = money.ToString();
         blockAtk = false;
         //idk random vals we can change later
-        playerAtk = 50;
-        enemyAtk = 25;
-        enemyHealth = 300;
-        playerHealth = 100;
+        playerAtk = 50f;
+        enemyAtk = 25f;
+        enemyHealth = 400f;
+        playerHealth = 100f;
         //making sure money is not subtracted for auto refresh
         freeRefresh = true;
 
@@ -273,8 +273,9 @@ public class ShopBehavior : MonoBehaviour
             dialougeText.text = "Andy just slapped you bro";
             yield return new WaitForSeconds(1f);
 
+            enemyAtk *= atkMultiplier;
             playerHealth -= enemyAtk;
-            playerHealthText.text = playerHealth.ToString();
+            playerHealthText.text = playerHealth.ToString("F0");
         }
 
         blockAtk = false;
@@ -337,7 +338,8 @@ public class ShopBehavior : MonoBehaviour
                 }
                 break;
             case 3:
-                playerHealth += 25;
+                if (playerHealth <= 75) playerHealth += 25;
+                else playerHealth = 100;
                 dialougeText.text = "Your health has been replenished.";
                 Debug.Log("PlayerHealth" + playerHealth);
                 break;
@@ -345,13 +347,15 @@ public class ShopBehavior : MonoBehaviour
                 coin = Random.Range(0, 2);
                 if (coin == 1)
                 {
-                    playerHealth += 25;
+                    if (playerHealth <= 75) playerHealth += 25;
+                    else playerHealth = 100;
                     dialougeText.text = "Your health has been replenished.";
                     Debug.Log("PlayerHealth" + playerHealth);
                 }
                 else
                 {
-                    enemyHealth += 50;
+                    if (enemyHealth <= 350) enemyHealth += 50;
+                    else enemyHealth = 400;
                     dialougeText.text = "Oh no! The enemy's health has been replenished. ";
                     Debug.Log("EnemyHealth" + enemyHealth);
                 }
