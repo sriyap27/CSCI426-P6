@@ -185,7 +185,7 @@ public class ShopBehavior : MonoBehaviour
         int currChoice1Idx;
         int currChoice2Idx;
         int currChoice3Idx;
-        if (money > 0 || freeRefresh && (debuffType != 3 ||numRerolls > 0))
+        if ((money > 0 || freeRefresh) && (debuffType != 3 ||numRerolls > 0) && powerUps.Count >= 3)
         {
             if (!freeRefresh)
             {
@@ -194,7 +194,7 @@ public class ShopBehavior : MonoBehaviour
             }
             currChoice1Idx = Random.Range(0, powerUps.Count);
             currChoice2Idx = Random.Range(0, powerUps.Count);
-            while (currChoice2Idx == currChoice1)
+            while (currChoice2Idx == currChoice1Idx)
             {
                 currChoice2Idx = Random.Range(0, powerUps.Count);
             }
@@ -320,21 +320,22 @@ public class ShopBehavior : MonoBehaviour
             enemyHealthText.text = enemyHealth.ToString();
 
 
-            // check if enemy is alive 
-            if (enemyHealth <= 0)
-            {
-                state = GameState.WIN;
-                EndGame();
-            }
-
-            else
-            {
-                state = GameState.ENEMYTURN;
-                StartCoroutine(EnemyTurn());
-            }
-
-            yield return new WaitForSeconds(2f);
+            
         }
+        // check if enemy is alive 
+        if (enemyHealth <= 0)
+        {
+            state = GameState.WIN;
+            EndGame();
+        }
+
+        else
+        {
+            state = GameState.ENEMYTURN;
+            StartCoroutine(EnemyTurn());
+        }
+
+        yield return new WaitForSeconds(2f);
 
     }
 
