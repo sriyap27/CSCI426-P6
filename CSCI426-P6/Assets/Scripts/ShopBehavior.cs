@@ -13,17 +13,22 @@ public class ShopBehavior : MonoBehaviour
     // references to player and enemy
     public GameObject player;
     public GameObject enemy;
+    SpriteRenderer enemySprite;
 
     public GameState state;
 
     // basic pool of power ups
-    List<int> powerUps = new List<int> { 1, 1, 1, 1, 1, 2, 2, 2, 2, 2, 2, 2, 2, 3, 3, 3, 3, 3, 3, 4, 4, 4, 4, 4, 4, 5, 5 };
-    int[] prices = { 4, 2, 4, 2, 8 };
-    /* 1 = atkIncrease
-     * 2 = atkIncrease COINFLIP
-     * 3 = heal
-     * 4 = heal COINFLIP
-     * 5 = block enemy atk one round */ //we can add more later if we feel we need it
+    List<int> powerUps = new List<int> { 0, 0, 1, 1, 2, 2, 3, 3, 4, 5, 6, 7};
+    int[] prices = { 3, 3, 4, 4, 3, 3, 3, 4 };
+    /* 0 = heal
+     * 1 = sacrifice hp to deal damage
+     * 2 = deal damage (vanilla)
+     * 3 = damage over time
+     * 4 = block CS
+     * 5 = block architecture
+     * 6 = block games
+     * 7 = cleanse
+     */ //we can add more later if we feel we need it
 
     // current choices' indexes displayed by the shop
     int currChoice1;
@@ -31,13 +36,19 @@ public class ShopBehavior : MonoBehaviour
     int currChoice3;
 
     int money;
-    float playerAtk;
-    float playerHealth;
-    float enemyAtk;
-    float enemyHealth;
+    int playerHealth;
+    int enemyHealth;
     bool freeRefresh;
-    float atkMultiplier = 1.25f;
-    bool blockAtk;
+    int blockType;
+    int enemyType;
+    int dotCounter;
+    int debuffType = 0;
+    int numRerolls;
+
+    public int moneyDebuff = 1;
+    public int rerollDebuff = 3;
+    public int atkDebuff = 10;
+    
 
     // UI
     [SerializeField] TextMeshProUGUI choice1;
@@ -48,6 +59,8 @@ public class ShopBehavior : MonoBehaviour
     [SerializeField] TextMeshProUGUI enemyHealthText;
     [SerializeField] TextMeshProUGUI dialougeText;
     [SerializeField] TextMeshProUGUI moneyText;
+    [SerializeField] TextMeshProUGUI enemyTypeText;
+    [SerializeField] TextMeshProUGUI debuffText;
     [SerializeField] Button choice1Btn;
     [SerializeField] Button choice2Btn;
     [SerializeField] Button choice3Btn;
@@ -74,6 +87,34 @@ public class ShopBehavior : MonoBehaviour
         {
             SceneManager.LoadScene(SceneManager.GetActiveScene().name);
         }
+        switch(debuffType)
+        {
+            case 0:
+                debuffText.text = "No debuff";
+                break;
+            case 1:
+                debuffText.text = "Income debuff";
+                break;
+            case 2:
+                debuffText.text = "Attack debuff";
+                break;
+            case 3:
+                debuffText.text = "Reroll debuff";
+                break;
+        }
+
+        switch(enemyType)
+        {
+            case 1:
+                enemyTypeText.text = "Andy Type: CS";
+                break;
+            case 2:
+                enemyTypeText.text = "Andy Type: Architecture";
+                break;
+            case 3:
+                enemyTypeText.text = "Andy Type: Games";
+                break;
+        }
     }
 
     // set up the game 
@@ -84,15 +125,15 @@ public class ShopBehavior : MonoBehaviour
         choice2Btn.onClick.AddListener(Choice2);
         choice3Btn.onClick.AddListener(Choice3);
         attackBtn.onClick.AddListener(Attack);
+        enemySprite = enemy.GetComponent<SpriteRenderer>();
 
         money = 10;
         moneyText.text = money.ToString();
-        blockAtk = false;
         //idk random vals we can change later
-        playerAtk = 50f;
-        enemyAtk = 25f;
-        enemyHealth = 400f;
-        playerHealth = 100f;
+        enemyHealth = 400;
+        playerHealth = 100;
+        enemyType = 1;
+        blockType = 0; // indicates no block being used
         //making sure money is not subtracted for auto refresh
         freeRefresh = true;
 
@@ -118,34 +159,61 @@ public class ShopBehavior : MonoBehaviour
     void RefreshShop()
     {
         // repopulating if we somehow run out
-        if (powerUps.Count < 3)
+        if (freeRefresh)
         {
-            powerUps = new List<int> { 1, 1, 1, 1, 1, 2, 2, 2, 2, 2, 2, 2, 2, 3, 3, 3, 3, 3, 3, 4, 4, 4, 4, 4, 4, 5, 5 };
+            powerUps = new List<int> { 0, 0, 1, 1, 2, 2, 3, 3, 4, 5, 6, 7 };
+            enemyType = Random.Range(1, 4);
+            numRerolls = rerollDebuff;
+            if (enemyType == 1)
+            {
+                dialougeText.text = "Andy's attack will be CS type";
+                enemySprite.color = Color.green;
+            }
+            else if (enemyType == 2)
+            {
+                dialougeText.text = "Andy's attack will be Architecture type";
+                enemySprite.color = Color.red;
+            }
+            else
+            {
+                dialougeText.text = "Andy's attack will be Games type";
+                enemySprite.color = Color.blue;
+            }
 
         }
         // getting 3 random values from the shop
-        if (money > 0 || freeRefresh)
+        int currChoice1Idx;
+        int currChoice2Idx;
+        int currChoice3Idx;
+        if (money > 0 || freeRefresh && (debuffType != 3 ||numRerolls > 0))
         {
             if (!freeRefresh)
             {
                 money--;
                 moneyText.text = money.ToString();
             }
-            currChoice1 = Random.Range(0, powerUps.Count);
-            currChoice2 = Random.Range(0, powerUps.Count);
-            while (currChoice2 == currChoice1)
+            currChoice1Idx = Random.Range(0, powerUps.Count);
+            currChoice2Idx = Random.Range(0, powerUps.Count);
+            while (currChoice2Idx == currChoice1)
             {
-                currChoice2 = Random.Range(0, powerUps.Count);
+                currChoice2Idx = Random.Range(0, powerUps.Count);
             }
-            currChoice3 = Random.Range(0, powerUps.Count);
-            while (currChoice3 == currChoice1 || currChoice3 == currChoice2)
+            currChoice3Idx = Random.Range(0, powerUps.Count);
+            while (currChoice3Idx == currChoice1Idx || currChoice3Idx == currChoice2Idx)
             {
-                currChoice3 = Random.Range(0, powerUps.Count);
+                currChoice3Idx = Random.Range(0, powerUps.Count);
             }
+            currChoice1 = powerUps[currChoice1Idx];
+            currChoice2 = powerUps[currChoice2Idx];
+            currChoice3 = powerUps[currChoice3Idx];
+            powerUps.Remove(currChoice1);
+            powerUps.Remove(currChoice2);
+            powerUps.Remove(currChoice3);
             freeRefresh = false;
             DisplayShop(currChoice1, choice1);
             DisplayShop(currChoice2, choice2);
             DisplayShop(currChoice3, choice3);
+            numRerolls--;
         }
 
     }
@@ -156,22 +224,31 @@ public class ShopBehavior : MonoBehaviour
         choice1Btn.gameObject.SetActive(true);
         choice2Btn.gameObject.SetActive(true);
         choice3Btn.gameObject.SetActive(true);
-        switch (powerUps[choice])
+        switch (choice)
         {
+            case 0:
+                choiceText.text = "Heal (3 gold)";
+                break;
             case 1:
-                choiceText.text = "Increase your attack (4 gold)";
+                choiceText.text = "Sacrifice HP to deal damage (3 gold)";
                 break;
             case 2:
-                choiceText.text = "You could increase your attack (2 gold)";
+                choiceText.text = "Deal damage (4 gold)";
                 break;
             case 3:
-                choiceText.text = "Heal (4 gold)";
+                choiceText.text = "Deal damage over 3 rounds (4 gold)";
                 break;
             case 4:
-                choiceText.text = "You could heal (2 gold)";
+                choiceText.text = "Block CS attack (3 gold)";
                 break;
             case 5:
-                choiceText.text = "Block enemy attack this round (8 gold)";
+                choiceText.text = "Block Architecture attack (3 gold)";
+                break;
+            case 6:
+                choiceText.text = "Block Games attack (3 gold)";
+                break;
+            case 7:
+                choiceText.text = "Cleanse all debuffs";
                 break;
 
         }
@@ -179,42 +256,39 @@ public class ShopBehavior : MonoBehaviour
 
     void Choice1()
     {
-        if (money >= prices[powerUps[currChoice1] - 1] && state == GameState.PLAYERTURN)
+        if (money >= prices[currChoice1] && state == GameState.PLAYERTURN)
         {
-            money -= prices[powerUps[currChoice1] - 1];
+            money -= prices[currChoice1];
             moneyText.text = money.ToString();
             choice1Btn.gameObject.SetActive(false);
             // do behavior correlated to the actual choice here
-            PowerUpBehavior(powerUps[currChoice1]);
-            powerUps.Remove(currChoice1);
+            PowerUpBehavior(currChoice1);
             Debug.Log(money);
         }
     }
 
     void Choice2()
     {
-        if (money >= prices[powerUps[currChoice2] - 1] && state == GameState.PLAYERTURN)
+        if (money >= prices[currChoice2] && state == GameState.PLAYERTURN)
         {
-            money -= prices[powerUps[currChoice2] - 1];
+            money -= prices[currChoice2];
             moneyText.text = money.ToString();
             choice2Btn.gameObject.SetActive(false);
             // do behavior correlated to the actual choice here
-            PowerUpBehavior(powerUps[currChoice2]);
-            powerUps.Remove(currChoice2);
+            PowerUpBehavior(currChoice2);
             Debug.Log(money);
         }
     }
 
     void Choice3()
     {
-        if (money >= prices[powerUps[currChoice3] - 1] && state == GameState.PLAYERTURN)
+        if (money >= prices[currChoice3] && state == GameState.PLAYERTURN)
         {
-            money -= prices[powerUps[currChoice3] - 1];
+            money -= prices[currChoice3];
             moneyText.text = money.ToString();
             choice3Btn.gameObject.SetActive(false);
             // do behavior correlated to the actual choice here
-            PowerUpBehavior(powerUps[currChoice3]);
-            powerUps.Remove(currChoice3);
+            PowerUpBehavior(currChoice3);
             Debug.Log(money);
         }
     }
@@ -231,28 +305,36 @@ public class ShopBehavior : MonoBehaviour
     // attack routine
     IEnumerator PlayerAttack()
     {
-        dialougeText.text = "The attack was successful!";
-
-        yield return new WaitForSeconds(1f);
-
-        enemyHealth -= playerAtk;
-        enemyHealthText.text = enemyHealth.ToString();
-
-
-        // check if enemy is alive 
-        if (enemyHealth <= 0)
+        if (dotCounter > 0)
         {
-            state = GameState.WIN;
-            EndGame();
-        }
+            dialougeText.text = "You dealt damage to Andy!";
+            enemyHealth -= 30;
+            if (debuffType == 2)
+            {
+                enemyHealth += atkDebuff;
+            }
+            dotCounter--;
 
-        else
-        {
-            state = GameState.ENEMYTURN;
-            StartCoroutine(EnemyTurn());
-        }
+            yield return new WaitForSeconds(1f);
 
-        yield return new WaitForSeconds(2f);
+            enemyHealthText.text = enemyHealth.ToString();
+
+
+            // check if enemy is alive 
+            if (enemyHealth <= 0)
+            {
+                state = GameState.WIN;
+                EndGame();
+            }
+
+            else
+            {
+                state = GameState.ENEMYTURN;
+                StartCoroutine(EnemyTurn());
+            }
+
+            yield return new WaitForSeconds(2f);
+        }
 
     }
 
@@ -263,22 +345,32 @@ public class ShopBehavior : MonoBehaviour
 
         yield return new WaitForSeconds(1f);
 
-        if(blockAtk == true)
+        if(blockType == enemyType)
         {
             dialougeText.text = "You blocked Andy's attack!";
             yield return new WaitForSeconds(1f);
         }
-        else
+        else if (blockType != 0)
         {
-            dialougeText.text = "Andy just slapped you bro";
+            dialougeText.text = "Andy applied his debuff";
             yield return new WaitForSeconds(1f);
 
-            enemyAtk *= atkMultiplier;
-            playerHealth -= enemyAtk;
+            //enemyAtk *= atkMultiplier;
+            //playerHealth -= enemyAtk;
+            debuffType = enemyType;
+            playerHealthText.text = playerHealth.ToString("F0");
+        }
+        else
+        {
+            dialougeText.text = "Andy just slapped you bruh";
+            yield return new WaitForSeconds(1f);
+            debuffType = enemyType;
+            playerHealth -= 30;
             playerHealthText.text = playerHealth.ToString("F0");
         }
 
-        blockAtk = false;
+        //blockAtk = false;
+        blockType = 0;
         yield return new WaitForSeconds(1f);
 
         // check player health
@@ -292,6 +384,10 @@ public class ShopBehavior : MonoBehaviour
         else
         {
             money += 10;
+            if (debuffType == 1)
+            {
+                money -= moneyDebuff;
+            }
             moneyText.text = money.ToString();
             state = GameState.PLAYERTURN;
             PlayerTurn();
@@ -317,51 +413,44 @@ public class ShopBehavior : MonoBehaviour
         int coin;
         switch (powerUP)
         {
-            case 1:
-                playerAtk *= atkMultiplier;
-                dialougeText.text = "Your attack has been multiplied!";
-                Debug.Log("PlayerAtk" + playerAtk);
-                break;
-            case 2:
-                coin = Random.Range(0, 2);
-                if (coin == 1)
-                {
-                    playerAtk *= atkMultiplier;
-                    dialougeText.text = "Your attack has been multiplied!";
-                    Debug.Log("PlayerAtk" + playerAtk);
-                }
-                else
-                {
-                    enemyAtk *= atkMultiplier;
-                    dialougeText.text = "Oh no! The enemy's attack has been multiplied!";
-                    Debug.Log("EnemyAtk" + enemyAtk);
-                }
-                break;
-            case 3:
+            case 0:
                 if (playerHealth <= 75) playerHealth += 25;
                 else playerHealth = 100;
                 dialougeText.text = "Your health has been replenished.";
                 Debug.Log("PlayerHealth" + playerHealth);
                 break;
+            case 1:
+                playerHealth -= 10;
+                enemyHealth -= 75;
+                if (debuffType == 2)
+                    enemyHealth += atkDebuff;
+                dialougeText.text = "You used your own HP to greatly damage Andy.";
+                break;
+            case 2:
+                enemyHealth -= 50;
+                if (debuffType == 2)
+                enemyHealth += atkDebuff;
+                dialougeText.text = "You damaged Andy!";
+                break;
+            case 3:
+                dotCounter = 3;
+                dialougeText.text = "Deal damage at the beginning of the next 3 rounds!";
+                break;
             case 4:
-                coin = Random.Range(0, 2);
-                if (coin == 1)
-                {
-                    if (playerHealth <= 75) playerHealth += 25;
-                    else playerHealth = 100;
-                    dialougeText.text = "Your health has been replenished.";
-                    Debug.Log("PlayerHealth" + playerHealth);
-                }
-                else
-                {
-                    if (enemyHealth <= 350) enemyHealth += 50;
-                    else enemyHealth = 400;
-                    dialougeText.text = "Oh no! The enemy's health has been replenished. ";
-                    Debug.Log("EnemyHealth" + enemyHealth);
-                }
+                blockType = 1;
+                dialougeText.text = "You will fully block CS attacks";
                 break;
             case 5:
-                blockAtk = true;
+                blockType = 2;
+                dialougeText.text = "You will fully block Architecture attacks";
+                break;
+            case 6:
+                blockType = 3;
+                dialougeText.text = "You will fully block Games attacks";
+                break;
+            case 7:
+                debuffType = 0;
+                dialougeText.text = "Cleansed debuff";
                 break;
         }
     }
